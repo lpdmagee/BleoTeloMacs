@@ -3,26 +3,174 @@ title: "Bleomycin self-limited model"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r}
+library(Seurat)
+library(dplyr)
+library(Matrix)
 ```
 
-## R Markdown
+```{r}
+healthy1_1.data<-read.table(file=paste0("/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/","GSM3036808_Control_1_1_Mouse_lung_digital_gene_expression_400.dge.txt"), sep="", row.names = 1, header = TRUE, as.is = TRUE)
+healthy1_1 <- CreateSeuratObject(counts = healthy1_1.data, project = "healthy1_1", min.cells = 3, min.features = 200)
+healthy1_1$group <- "Healthy"
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+healthy1_2.data<-read.table(file=paste0("/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/","GSM3036809_Control_1_2_Mouse_lung_digital_gene_expression_1500.dge.txt"),sep="", row.names = 1, header = TRUE, as.is = TRUE)
+healthy1_2 <- CreateSeuratObject(counts = healthy1_2.data, project = "healthy1_2", min.cells = 3, min.features = 200)
+healthy1_2$group <- "Healthy"
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+healthy2.data<-read.table(file=paste0("/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/","GSM3036810_Control_2_Mouse_lung_digital_gene_expression_4000.dge.txt"),sep="", row.names = 1, header = TRUE, as.is = TRUE)
+healthy2 <- CreateSeuratObject(counts = healthy2.data, project = "healthy2", min.cells = 3, min.features = 200)
+healthy2$group <- "Healthy"
 
-```{r cars}
-summary(cars)
+healthy3.data<-read.table(file=paste0("/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/","GSM3036811_Control_3_Mouse_lung_digital_gene_expression_6000.dge.txt"),sep="", row.names = 1, header = TRUE, as.is = TRUE)
+healthy3 <- CreateSeuratObject(counts = healthy3.data, project = "healthy3", min.cells = 3, min.features = 200)
+healthy3$group <- "Healthy"
+
+healthy4.data<-read.table(file=paste0("/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/","GSM3036812_Control_4_Mouse_lung_digital_gene_expression_4000.dge.txt"),sep="", row.names = 1, header = TRUE, as.is = TRUE)
+healthy4 <- CreateSeuratObject(counts = healthy4.data, project = "healthy4", min.cells = 3, min.features = 200)
+healthy4$group <- "Healthy"
+
+healthy5.data<-read.table(file=paste0("/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/","GSM3036813_Control_5_Mouse_lung_digital_gene_expression_4000.dge.txt"),sep="", row.names = 1, header = TRUE, as.is = TRUE)
+healthy5 <- CreateSeuratObject(counts = healthy5.data, project = "healthy5", min.cells = 3, min.features = 200)
+healthy5$group <- "Healthy"
+
+healthy6.data<-read.table(file=paste0("/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/","GSM3036814_Control_6_Mouse_lung_digital_gene_expression_6000.dge.txt"),sep="", row.names = 1, header = TRUE, as.is = TRUE)
+healthy6 <- CreateSeuratObject(counts = healthy6.data, project = "healthy6", min.cells = 3, min.features = 200)
+healthy6$group <- "Healthy"
 ```
 
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r}
+integratedHealthy.seu <- merge(healthy1_1, y = c(healthy1_2, healthy2, healthy3, healthy4, healthy5, healthy6))
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+bleo1.data<-read.table(file=paste0("/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/","GSM3036815_Bleo_1_Mouse_lung_digital_gene_expression_4000.dge.txt"),sep="", row.names = 1, header = TRUE, as.is = TRUE)
+bleo1 <- CreateSeuratObject(counts = bleo1.data, project = "bleo1", min.cells = 3, min.features = 200)
+bleo1$group = "Bleo"
+
+bleo2.data<-read.table(file=paste0("/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/","GSM3036816_Bleo_2_Mouse_lung_digital_gene_expression_6000.dge.txt"),sep="", row.names = 1, header = TRUE, as.is = TRUE)
+bleo2 <- CreateSeuratObject(counts = bleo2.data, project = "bleo2", min.cells = 3, min.features = 200)
+bleo2$group = "Bleo"
+
+bleo3.data<-read.table(file=paste0("/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/","GSM3036817_Bleo_3_Mouse_lung_digital_gene_expression_6000.dge.txt"),sep="", row.names = 1, header = TRUE, as.is = TRUE)
+bleo3 <- CreateSeuratObject(counts = bleo3.data, project = "bleo3", min.cells = 3, min.features = 200)
+bleo3$group = "Bleo"
+```
+
+```{r}
+integratedBleo.seu <- merge(bleo1, y = c(bleo2, bleo3))
+```
+
+```{r}
+integratedMacs.seu <- merge(integratedHealthy.seu, y = c(integratedBleo.seu))
+```
+
+```{r}
+integratedMacs.seu[["percent.mt"]] <- PercentageFeatureSet(integratedMacs.seu, pattern = "^MT-")
+integratedMacs <- subset(integratedMacs.seu, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5)
+obj.list <- SplitObject(integratedMacs.seu, split.by = "group")
+IntegratedMacs <- SCTransform(integratedMacs.seu, vars.to.regress = "percent.mt", verbose = FALSE)
+```
+
+```{r}
+integratedMacs <- NormalizeData(integratedMacs)
+integratedMacs <- FindVariableFeatures(integratedMacs, selection.method = "vst", nfeatures = 2000)
+all.genes <- rownames(integratedMacs)
+integratedMacs <- ScaleData(integratedMacs, features = all.genes)
+```
+
+```{r}
+integratedMacs <- RunPCA(integratedMacs)
+integratedMacs <- FindNeighbors(integratedMacs, dims= 1:10)
+integratedMacs <- FindClusters(integratedMacs, resolution = 0.5)
+integratedMacs <- RunTSNE(integratedMacs)
+```
+
+
+```{r}
+DimPlot(integratedMacs, reduction = "tsne", group.by = "group")
+```
+
+```{r}
+library(SingleR)
+library(scater)
+library(scRNAseq)
+```
+
+```{r}
+immGen <- ImmGenData()
+bleoSC <- as.SingleCellExperiment(integratedMacs)
+bleoSC <- logNormCounts(bleoSC)
+pred.bleoSC <- SingleR(test = bleoSC, ref = immGen, labels = immGen$label.main)
+pred.bleoSCfine <- SingleR(test = bleoSC, ref = immGen, labels = immGen$label.fine)
+#pred.bleoSCfine
+#pred.bleoSC
+```
+
+```{r}
+#general annotation
+table(pred.bleoSC$labels)
+integratedMacs[["SingleR.labels"]]<- pred.bleoSC$labels
+new.cluster.ids <- c("B cells", "B cells, pro", "Basophils", "DC", "Endothelial cells", "Eosinophils", "Epithelial cells", "Fibroblasts", "ILC", "Macrophages", "Mast cells", "Microglia", "Monocytes", "justMacs", "NK cells", "NKT", "Stem cells", "Stromal cells", "T cells", "Tgd" )
+names(new.cluster.ids) <- levels(integratedMacs)
+```
+
+```{r}
+#fine annotation
+table(pred.bleoSCfine$labels)
+integratedMacs[["SingleR.labels"]]<- pred.bleoSCfine$labels
+new.cluster.ids <- c("B cells", "B cells, pro", "Basophils", "DC", "Endothelial cells", "Eosinophils", "Epithelial cells", "Fibroblasts", "ILC", "Macrophages", "Mast cells", "Microglia", "Monocytes", "justMacs", "NK cells", "NKT", "Stem cells", "Stromal cells", "T cells", "Tgd" )
+names(new.cluster.ids) <- levels(integratedMacs)
+```
+
+```{r}
+allBleoMacs <- integratedMacs[,integratedMacs$SingleR.labels == "Macrophages"]
+someBleoMacs <- integratedMacs[,integratedMacs$SingleR.labels == "Macrophages (MF.ALV)"]
+```
+
+
+```{r}
+#adjust object for general/fine annotation
+TSNEPlot(allBleoMacs, label = TRUE, pt.size = 0.5, group.by = "SingleR.labels") + NoLegend()
+DimPlot(allBleoMacs, reduction = "tsne")
+```
+
+```{r}
+allBleoMacs.markers <- FindAllMarkers(allBleoMacs, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25, group.by = "group")
+```
+
+```{r}
+allBleoMacs.markers %>% group_by(cluster) %>% top_n(n = 2, wt = avg_logFC)
+```
+
+```{r}
+VlnPlot(allBleoMacs, features = c("Fabp1", "Ear10"), group.by = "group")
+```
+
+
+```{r}
+#shortcuts
+saveRDS(integratedHealthy.seu, file = "/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/integratedHealthy.rds")
+```
+```{r}
+saveRDS(integratedBleo.seu, file = "/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/integratedBleo.rds")
+```
+```{r}
+saveRDS(integratedMacs, file = "/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/integratedMacs.rds")
+```
+```{r}
+integratedMacs <- readRDS(file = "/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/integratedMacs.rds")
+```
+
+```{r}
+saveRDS(allBleoMacs, file = "/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/allBleoMacs.rds")
+```
+```{r}
+allBleoMacs <- readRDS(file = "/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/allBleoMacs.rds")
+```
+```{r}
+saveRDS(someBleoMacs, file = "/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/someBleoMacs.rds")
+```
+```{r}
+someBleoMacs <- readRDS(file = "/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/someBleoMacs.rds")
+```

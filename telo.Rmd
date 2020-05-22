@@ -3,26 +3,132 @@ title: "Telomere dysfunction progressive model"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r}
+library(Seurat)
+library(dplyr)
+library(Matrix)
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+```{r}
+Early1.data <- Read10X(data.dir = "/Users/liammagee/desktop/R stuff/Documents/Early1/filtered_gene_bc_matrices/mm10/")
+Early1 <- CreateSeuratObject(counts = Early1.data, project = "Early1", min.cells = 3, min.features = 200)
+Early2.data <- Read10X(data.dir = "/Users/liammagee/desktop/R stuff/Documents/Early2/filtered_gene_bc_matrices/mm10/")
+Early2 <- CreateSeuratObject(counts = Early2.data, project = "Early2", min.cells = 3, min.features = 200)
+Late1.data <- Read10X(data.dir = "/Users/liammagee/desktop/R stuff/Documents/Late Disease 1/filtered_gene_bc_matrices/mm10/")
+Late1 <- CreateSeuratObject(counts = Late1.data, project = "Disease1", min.cells = 3, min.features = 200)
+Late2.data <- Read10X(data.dir = "/Users/liammagee/desktop/R stuff/Documents/Late Disease 2/filtered_gene_bc_matrices/mm10/")
+Late2 <- CreateSeuratObject(counts = Late2.data, project = "Disease2", min.cells = 3, min.features = 200)
+Late3.data <- Read10X(data.dir = "/Users/liammagee/desktop/R stuff/Documents/Late Disease 3/filtered_gene_bc_matrices/mm10/")
+Late3 <- CreateSeuratObject(counts = Late3.data, project = "Disease3", min.cells = 3, min.features = 200)
+teloInt <- merge(Early1, y = c(Early2, Late2, Late3))
+add.cell.ids = c("Early1", "Early2", "Late2", "Late3")
+#Code to run to separate the early from the late disease 
 ```
 
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r}
+teloInt[["percent.mt"]] <- PercentageFeatureSet(teloInt, pattern = "^MT-")
+teloInt <- subset(teloInt, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5)
+teloInt <- SCTransform(teloInt, vars.to.regress = "percent.mt", verbose = FALSE)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+```{r}
+teloInt <- NormalizeData(teloInt)
+teloInt <- FindVariableFeatures(teloInt, selection.method = "vst", nfeatures = 2000)
+all.genes <- rownames(teloInt)
+teloInt <- ScaleData(teloInt, features = all.genes)
+```
+
+```{r}
+teloInt <- RunPCA(teloInt)
+teloInt <- FindNeighbors(teloInt, dims= 1:10)
+teloInt <- FindClusters(teloInt, resolution = 0.5)
+teloInt <- RunTSNE(teloInt)
+DimPlot(teloInt, reduction = "tsne")
+```
+
+```{r}
+library(SingleR)
+library(scater)
+library(scRNAseq)
+```
+
+```{r}
+immGen <- ImmGenData()
+teloSC <- as.SingleCellExperiment(teloInt)
+teloSC <- logNormCounts(teloSC)
+pred.teloSC <- SingleR(test = teloSC, ref = immGen, labels = immGen$label.main)
+pred.teloSCfine <- SingleR(test = teloSC, ref = immGen, labels = immGen$label.fine)
+#pred.teloSC
+#pred.teloSCfine
+```
+
+```{r}
+#general annotation
+table(pred.teloSC$labels)
+teloInt[["SingleR.labels"]]<- pred.teloSC$labels
+new.cluster.ids <- c("B cells", "B cells, pro", "Basophils", "DC", "Endothelial cells", "Eosinophils", "Epithelial cells", "Fibroblasts", "ILC", "Macrophages", "Mast cells", "Microglia", "Monocytes", "Neutrophils", "NK cells", "NKT", "Stem cells", "Stromal cells", "T cells", "Tgd" )
+names(new.cluster.ids) <- levels(teloInt)
+```
+
+```{r}
+#fine annotation
+table(pred.teloSCfine$labels)
+teloInt[["SingleR.labels"]]<- pred.teloSCfine$labels
+new.cluster.ids <- c("B cells", "B cells, pro", "Basophils", "DC", "Endothelial cells", "Eosinophils", "Epithelial cells", "Fibroblasts", "ILC", "Macrophages", "Mast cells", "Microglia", "Monocytes", "Neutrophils", "NK cells", "NKT", "Stem cells", "Stromal cells", "T cells", "Tgd" )
+names(new.cluster.ids) <- levels(teloInt)
+```
+
+
+
+
+
+```{r}
+allTeloMacs <- teloInt[, teloInt$SingleR.labels == "Macrophages"]
+someTeloMacs <- teloInt[, teloInt$SingleR.labels == "Macrophages (MF.ALV)"]
+```
+
+```{r}
+#IS IT IMPORTANT TO RUN THIS AGAIN POST-ISOLATION? B/C THAT ISN'T HAPPENING W/BLEO RN.
+allTeloMacs <- RunPCA(allTeloMacs)
+allTeloMacs <- FindNeighbors(allTeloMacs, dims = 1:10)
+allTeloMacs <- FindClusters(allTeloMacs, resolution = 0.5)
+allTeloMacs <- RunTSNE(allTeloMacs, dims = 1:10)
+```
+
+```{r}
+#adjust object for fine/general annotation
+TSNEPlot(allTeloMacs, label = TRUE, pt.size = 0.5, group.by = "SingleR.labels") + NoLegend()
+DimPlot(allTeloMacs, reduction = "tsne")
+```
+
+```{r}
+allTeloMacs.markers <- FindAllMarkers(allBleoMacs, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25, group.by = "group")
+```
+
+```{r}
+allTeloMacs.markers %>% group_by(cluster) %>% top_n(n = 2, wt = avg_logFC)
+```
+
+```{r}
+VlnPlot(allTeloMacs, features = c("Fabp1", "Ear10"), group.by = "group")
+```
+
+
+```{r}
+#shortcuts
+saveRDS(teloInt, file = "/Users/liammagee/Desktop/R stuff/natureMacs/teloInt.rds")
+```
+```{r}
+teloInt <- readRDS(file = "/Users/liammagee/Desktop/R stuff/natureMacs/teloInt.rds")
+```
+```{r}
+saveRDS(allTeloMacs, file = "/Users/liammagee/Desktop/R stuff/natureMacs/allTeloMacs.rds")
+```
+```{r}
+saveRDS(someTeloMacs, file = "/Users/liammagee/Desktop/R stuff/natureMacs/someTeloMacs.rds")
+```
+
+
+
+

@@ -3,26 +3,116 @@ title: "Merged comparison"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r}
+library(Seurat)
+library(dplyr)
+library(Matrix)
 ```
 
-## R Markdown
+```{r}
+#reading in data: choose which lines to run, depending on if you want all macs vs. some macs
+allBleoMacs <- readRDS(file = "/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/allBleoMacs.rds")
+someBleoMacs <- readRDS(file = "/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/someBleoMacs.rds")
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+allTeloMacs <- readRDS(allTeloMacs, file = "/Users/liammagee/Desktop/R stuff/natureMacs/allTeloMacs.rds")
+someTeloMacs <- readRDS(someTeloMacs, file = "/Users/liammagee/Desktop/R stuff/natureMacs/someTeloMacs.rds")
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r}
+#again, choose lines to run depending on all macs vs. some macs
+allTeloMacs$group = "Telo macs"
+allBleoMacs$group = "Bleo macs"
+
+someTeloMacs$group = "Telo macs"
+someBleoMacs$group = "Bleo macs"
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+```{r}
+#again, choose lines to run depending on all macs vs. some macs
+allMergedMacs <- merge(allTeloMacs, y = c(allBleoMacs))
+someMergedMacs <- merge(someTeloMacs, y = c(someBleoMacs))
+```
+
+
+
+```{r}
+#again, choose lines to run depending on all macs vs. some macs
+allMergedMacs[["percent.mt"]] <- PercentageFeatureSet(allMergedMacs, pattern = "^MT-")
+allMergedMacs <- subset(allMergedMacs, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5)
+obj.list <- SplitObject(allMergedMacs, split.by = "group")
+allMergedMacs <- SCTransform(allMergedMacs, vars.to.regress = "percent.mt", verbose = FALSE)
+
+someMergedMacs[["percent.mt"]] <- PercentageFeatureSet(someMergedMacs, pattern = "^MT-")
+someMergedMacs <- subset(someMergedMacs, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5)
+obj.list <- SplitObject(someMergedMacs, split.by = "group")
+someMergedMacs <- SCTransform(someMergedMacs, vars.to.regress = "percent.mt", verbose = FALSE)
+```
+
+
+```{r}
+allMergedMacs <- NormalizeData(allMergedMacs)
+allMergedMacs <- FindVariableFeatures(allMergedMacs, selection.method = "vst", nfeatures = 2000)
+all.genes <- rownames(allMergedMacs)
+allMergedMacs <- ScaleData(allMergedMacs, features = all.genes)
+
+someMergedMacs <- NormalizeData(someMergedMacs)
+someMergedMacs <- FindVariableFeatures(someMergedMacs, selection.method = "vst", nfeatures = 2000)
+all.genes <- rownames(someMergedMacs)
+someMergedMacs <- ScaleData(someMergedMacs, features = all.genes)
+```
+
+```{r}
+allMergedMacs <- RunPCA(allMergedMacs)
+allMergedMacs <- FindNeighbors(allMergedMacs, dims= 1:10)
+allMergedMacs <- FindClusters(allMergedMacs, resolution = 0.5)
+allMergedMacs <- RunTSNE(allMergedMacs)
+
+someMergedMacs <- RunPCA(someMergedMacs)
+someMergedMacs <- FindNeighbors(someMergedMacs, dims= 1:10)
+someMergedMacs <- FindClusters(someMergedMacs, resolution = 0.5)
+someMergedMacs <- RunTSNE(someMergedMacs)
+```
+
+
+```{r}
+plot1 <- DimPlot(allMergedMacs, reduction = "tsne", group.by = "group")
+plot2 <- DimPlot(allMergedMacs, reduction = "tsne")
+CombinePlots(plots = list(plot1, plot2))
+
+plot3 <- DimPlot(someMergedMacs, reduction = "tsne", group.by = "group")
+plot4 <- DimPlot(someMergedMacs, reduction = "tsne")
+CombinePlots(plots = list(plot3, plot4))
+```
+
+```{r}
+#adjust object for all macs vs. some macs
+allMergedMacs.markers <- FindAllMarkers(allMergedMacs, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+```
+```{r}
+allMergedMacs.markers %>% group_by(cluster) %>% top_n(n = 5, wt = avg_logFC)
+```
+```{r}
+VlnPlot(object = allMergedMacs, features = c("Chil3"), group.by = "group")
+```
+```{r}
+FeaturePlot(object = allMergedMacs, features = c("H2-Ab1", "H2-Eb1", "H2-Aa"))
+```
+
+
+
+```{r}
+#shortcuts
+saveRDS(someMergedMacs, file = "/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/someMergedMacs.rds")
+```
+```{r}
+someMergedMacs <- readRDS(file = "/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/someMergedMacs.rds")
+```
+```{r}
+saveRDS(allMergedMacs, file = "/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/allMergedMacs.rds")
+```
+```{r}
+allMergedMacs <- readRDS(file = "/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/allMergedMacs.rds")
+```
