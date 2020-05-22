@@ -89,6 +89,15 @@ someTeloMacs <- teloInt[, teloInt$SingleR.labels == "Macrophages (MF.ALV)"]
 ```
 
 ```{r}
+allTeloMacs[["percent.mt"]] <- PercentageFeatureSet(allTeloMacs, pattern = "^MT-")
+allTeloMacs <- subset(allTeloMacs, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5)
+
+someTeloMacs[["percent.mt"]] <- PercentageFeatureSet(someTeloMacs, pattern = "^MT-")
+someTeloMacs <- subset(someTeloMacs, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5)
+```
+
+
+```{r}
 #IS IT IMPORTANT TO RUN THIS AGAIN POST-ISOLATION? B/C THAT ISN'T HAPPENING W/BLEO RN.
 allTeloMacs <- RunPCA(allTeloMacs)
 allTeloMacs <- FindNeighbors(allTeloMacs, dims = 1:10)

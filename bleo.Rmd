@@ -62,33 +62,32 @@ integratedBleo.seu <- merge(bleo1, y = c(bleo2, bleo3))
 ```
 
 ```{r}
-integratedMacs.seu <- merge(integratedHealthy.seu, y = c(integratedBleo.seu))
+bleoInt <- merge(integratedHealthy.seu, y = c(integratedBleo.seu))
 ```
 
 ```{r}
-integratedMacs.seu[["percent.mt"]] <- PercentageFeatureSet(integratedMacs.seu, pattern = "^MT-")
-integratedMacs <- subset(integratedMacs.seu, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5)
-obj.list <- SplitObject(integratedMacs.seu, split.by = "group")
-IntegratedMacs <- SCTransform(integratedMacs.seu, vars.to.regress = "percent.mt", verbose = FALSE)
+bleoInt[["percent.mt"]] <- PercentageFeatureSet(bleoInt, pattern = "^MT-")
+bleoInt <- subset(bleoInt, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5)
+bleoInt <- SCTransform(bleoInt, vars.to.regress = "percent.mt", verbose = FALSE)
 ```
 
 ```{r}
-integratedMacs <- NormalizeData(integratedMacs)
-integratedMacs <- FindVariableFeatures(integratedMacs, selection.method = "vst", nfeatures = 2000)
-all.genes <- rownames(integratedMacs)
-integratedMacs <- ScaleData(integratedMacs, features = all.genes)
+bleoInt <- NormalizeData(bleoInt)
+bleoInt <- FindVariableFeatures(bleoInt, selection.method = "vst", nfeatures = 2000)
+all.genes <- rownames(bleoInt)
+bleoInt <- ScaleData(bleoInt, features = all.genes)
 ```
 
 ```{r}
-integratedMacs <- RunPCA(integratedMacs)
-integratedMacs <- FindNeighbors(integratedMacs, dims= 1:10)
-integratedMacs <- FindClusters(integratedMacs, resolution = 0.5)
-integratedMacs <- RunTSNE(integratedMacs)
+bleoInt <- RunPCA(bleoInt)
+bleoInt <- FindNeighbors(bleoInt, dims= 1:10)
+bleoInt <- FindClusters(bleoInt, resolution = 0.5)
+bleoInt <- RunTSNE(bleoInt)
 ```
 
 
 ```{r}
-DimPlot(integratedMacs, reduction = "tsne", group.by = "group")
+DimPlot(bleoInt, reduction = "tsne", group.by = "group")
 ```
 
 ```{r}
@@ -99,7 +98,7 @@ library(scRNAseq)
 
 ```{r}
 immGen <- ImmGenData()
-bleoSC <- as.SingleCellExperiment(integratedMacs)
+bleoSC <- as.SingleCellExperiment(bleoInt)
 bleoSC <- logNormCounts(bleoSC)
 pred.bleoSC <- SingleR(test = bleoSC, ref = immGen, labels = immGen$label.main)
 pred.bleoSCfine <- SingleR(test = bleoSC, ref = immGen, labels = immGen$label.fine)
@@ -110,22 +109,30 @@ pred.bleoSCfine <- SingleR(test = bleoSC, ref = immGen, labels = immGen$label.fi
 ```{r}
 #general annotation
 table(pred.bleoSC$labels)
-integratedMacs[["SingleR.labels"]]<- pred.bleoSC$labels
+bleoInt[["SingleR.labels"]]<- pred.bleoSC$labels
 new.cluster.ids <- c("B cells", "B cells, pro", "Basophils", "DC", "Endothelial cells", "Eosinophils", "Epithelial cells", "Fibroblasts", "ILC", "Macrophages", "Mast cells", "Microglia", "Monocytes", "justMacs", "NK cells", "NKT", "Stem cells", "Stromal cells", "T cells", "Tgd" )
-names(new.cluster.ids) <- levels(integratedMacs)
+names(new.cluster.ids) <- levels(bleoInt)
 ```
 
 ```{r}
 #fine annotation
 table(pred.bleoSCfine$labels)
-integratedMacs[["SingleR.labels"]]<- pred.bleoSCfine$labels
+bleoInt[["SingleR.labels"]]<- pred.bleoSCfine$labels
 new.cluster.ids <- c("B cells", "B cells, pro", "Basophils", "DC", "Endothelial cells", "Eosinophils", "Epithelial cells", "Fibroblasts", "ILC", "Macrophages", "Mast cells", "Microglia", "Monocytes", "justMacs", "NK cells", "NKT", "Stem cells", "Stromal cells", "T cells", "Tgd" )
-names(new.cluster.ids) <- levels(integratedMacs)
+names(new.cluster.ids) <- levels(bleoInt)
 ```
 
 ```{r}
-allBleoMacs <- integratedMacs[,integratedMacs$SingleR.labels == "Macrophages"]
-someBleoMacs <- integratedMacs[,integratedMacs$SingleR.labels == "Macrophages (MF.ALV)"]
+allBleoMacs <- bleoInt[,bleoInt$SingleR.labels == "Macrophages"]
+someBleoMacs <- bleoInt[,bleoInt$SingleR.labels == "Macrophages (MF.ALV)"]
+```
+
+```{r}
+allBleoMacs[["percent.mt"]] <- PercentageFeatureSet(allBleoMacs, pattern = "^MT-")
+allBleoMacs <- subset(allBleoMacs, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5)
+
+someBleoMacs[["percent.mt"]] <- PercentageFeatureSet(someBleoMacs, pattern = "^MT-")
+someBleoMacs <- subset(someBleoMacs, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5)
 ```
 
 
@@ -156,10 +163,10 @@ saveRDS(integratedHealthy.seu, file = "/Users/liammagee/Desktop/R stuff/natureMa
 saveRDS(integratedBleo.seu, file = "/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/integratedBleo.rds")
 ```
 ```{r}
-saveRDS(integratedMacs, file = "/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/integratedMacs.rds")
+saveRDS(bleoInt, file = "/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/bleoInt.rds")
 ```
 ```{r}
-integratedMacs <- readRDS(file = "/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/integratedMacs.rds")
+bleoInt <- readRDS(file = "/Users/liammagee/Desktop/R stuff/natureMacs/GSE111664_RAW/bleoInt.rds")
 ```
 
 ```{r}
